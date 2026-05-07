@@ -6,12 +6,24 @@
 <title>Entrega Lunchbox – AVIAM PUJ</title>
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
 <style>
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
   body { background: #0F1117; color: #E2E8F0; font-family: 'DM Mono', 'Courier New', monospace; min-height: 100vh; padding-bottom: 90px; }
   ::-webkit-scrollbar { width: 4px; } ::-webkit-scrollbar-track { background: #1A1D27; } ::-webkit-scrollbar-thumb { background: #3A3D4A; border-radius: 2px; }
 
-  /* HEADER */
+  #loading-screen { position: fixed; inset: 0; background: #0F1117; display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 999; gap: 16px; }
+  .spinner { width: 36px; height: 36px; border: 3px solid #1E2130; border-top-color: #6366F1; border-radius: 50%; animation: spin 0.8s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  #loading-msg { font-size: 11px; color: #4A4D6A; letter-spacing: 1px; }
+
+  #sync-indicator { position: fixed; top: 8px; right: 12px; font-size: 9px; color: #4A4D6A; letter-spacing: 0.5px; z-index: 200; display: flex; align-items: center; gap: 5px; }
+  .sync-dot { width: 6px; height: 6px; border-radius: 50%; background: #10B981; transition: background 0.3s; }
+  .sync-dot.syncing { background: #F59E0B; animation: pulse 0.8s infinite; }
+  .sync-dot.error { background: #EF4444; }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
+
   #header { background: #13151F; border-bottom: 1px solid #1E2130; padding: 18px 16px 14px; position: sticky; top: 0; z-index: 100; }
   #title { font-family: 'Bebas Neue', sans-serif; font-size: 26px; letter-spacing: 2px; color: #E2E8F0; }
   #subtitle { font-size: 10px; color: #4A4D6A; letter-spacing: 1px; margin-left: 10px; }
@@ -20,20 +32,18 @@
   #progress-bar-track { height: 4px; background: #1E2130; border-radius: 2px; overflow: hidden; margin-bottom: 12px; }
   #progress-bar-fill { height: 100%; width: 0%; background: linear-gradient(90deg, #6366F1, #8B5CF6); border-radius: 2px; transition: width 0.4s ease; }
   #search { width: 100%; background: #1A1D27; border: 1px solid #2D3148; border-radius: 6px; color: #E2E8F0; font-family: inherit; font-size: 12px; padding: 8px 12px; outline: none; margin-bottom: 10px; transition: border-color 0.2s; }
-  #search:focus { border-color: #6366F1; }
-  #search::placeholder { color: #3D4460; }
-  .filters { display: flex; gap: 6px; flex-wrap: wrap; }
+  #search:focus { border-color: #6366F1; } #search::placeholder { color: #3D4460; }
+  .filters { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
   .filter-btn { background: none; border: 1px solid #2D3148; border-radius: 4px; color: #64748B; cursor: pointer; font-family: inherit; font-size: 11px; padding: 5px 12px; letter-spacing: 0.05em; transition: all 0.15s; }
   .filter-btn.active { background: #6366F1; border-color: #6366F1; color: white; }
   .filter-btn:hover:not(.active) { border-color: #4A4D6A; color: #94A3B8; }
-  #export-btn { background: #10B981; border: none; border-radius: 4px; color: #fff; cursor: pointer; font-family: inherit; font-size: 11px; padding: 5px 14px; letter-spacing: 0.05em; transition: background 0.15s; }
-  #export-btn:hover { background: #059669; }
-  #export-btn:active { transform: scale(0.97); }
+  .action-btn { border: none; border-radius: 4px; cursor: pointer; font-family: inherit; font-size: 11px; padding: 5px 12px; letter-spacing: 0.05em; transition: all 0.15s; }
+  #export-btn { background: #10B981; color: #fff; } #export-btn:hover { background: #059669; }
+  #reset-btn  { background: #1E2130; color: #64748B; margin-left: auto; } #reset-btn:hover { background: #374151; color: #E2E8F0; }
 
-  /* AREAS */
   #areas { padding: 12px 16px; display: flex; flex-direction: column; gap: 10px; }
   .area-card { background: #13151F; border: 1px solid #1E2130; border-radius: 10px; overflow: hidden; }
-  .area-header { display: flex; align-items: center; gap: 10px; padding: 12px 14px; cursor: pointer; user-select: none; border-left: 3px solid var(--color); transition: opacity 0.15s; }
+  .area-header { display: flex; align-items: center; gap: 10px; padding: 12px 14px; cursor: pointer; user-select: none; border-left: 3px solid var(--color); }
   .area-header:hover { opacity: 0.85; }
   .area-title { font-family: 'Bebas Neue', sans-serif; font-size: 16px; letter-spacing: 1px; color: var(--color); }
   .area-badge { font-size: 9px; background: #1E2130; color: #64748B; padding: 2px 6px; border-radius: 3px; letter-spacing: 0.5px; margin-left: 6px; }
@@ -44,47 +54,46 @@
   .area-chevron { font-size: 11px; color: #3A3D4A; margin-left: auto; flex-shrink: 0; }
   .area-body { padding: 4px 14px 12px; }
 
-  /* ROWS */
   .person-row { display: flex; align-items: center; gap: 10px; padding: 7px 4px; border-radius: 6px; transition: background 0.15s; cursor: pointer; }
   .person-row:hover { background: rgba(255,255,255,0.04); }
   .person-row.done { opacity: 0.4; }
   .person-row.hidden { display: none; }
   .checkbox { width: 18px; height: 18px; border-radius: 4px; border: 1.5px solid #3A3D4A; display: flex; align-items: center; justify-content: center; flex-shrink: 0; transition: all 0.15s; }
-  .checkbox.checked { border-color: transparent; }
-  .checkbox svg { display: none; }
-  .checkbox.checked svg { display: block; }
-  .person-name { font-size: 12px; color: #CBD5E1; flex: 1; transition: color 0.15s; }
+  .person-name { font-size: 12px; color: #CBD5E1; flex: 1; }
   .done .person-name { color: #4A4D6A; text-decoration: line-through; }
   .person-id { font-size: 10px; color: #3A3D4A; margin-left: 6px; }
   .person-turno { font-size: 9px; color: #4A5568; background: #1A1D27; padding: 1px 5px; border-radius: 3px; margin-left: 4px; }
   .manual-tag { font-size: 9px; color: var(--color); opacity: 0.6; margin-left: 4px; }
   .del-btn { background: none; border: none; cursor: pointer; color: #EF4444; font-size: 11px; padding: 2px 5px; opacity: 0; transition: opacity 0.15s; flex-shrink: 0; }
-  .person-row:hover .del-btn { opacity: 0.6; }
-  .del-btn:hover { opacity: 1 !important; }
+  .person-row:hover .del-btn { opacity: 0.6; } .del-btn:hover { opacity: 1 !important; }
 
-  /* ADD ROW */
   .add-row { display: flex; align-items: center; gap: 8px; margin-top: 8px; padding-top: 8px; border-top: 1px solid #1A1D27; }
   .add-label { font-size: 12px; color: #3A3D4A; }
-  .add-input { background: transparent; border: none; border-bottom: 1px solid #2D3148; color: #94A3B8; font-family: inherit; font-size: 12px; outline: none; flex: 1; padding: 4px 0; transition: border-color 0.2s, color 0.2s; }
-  .add-input::placeholder { color: #3D4460; }
-  .add-input:focus { border-bottom-color: #6366F1; color: #E2E8F0; }
+  .add-input { background: transparent; border: none; border-bottom: 1px solid #2D3148; color: #94A3B8; font-family: inherit; font-size: 12px; outline: none; flex: 1; padding: 4px 0; transition: border-color 0.2s; }
+  .add-input::placeholder { color: #3D4460; } .add-input:focus { border-bottom-color: #6366F1; color: #E2E8F0; }
   .add-btn { background: none; border: none; cursor: pointer; font-size: 15px; color: #94A3B8; opacity: 0.5; padding: 2px 6px; transition: opacity 0.2s; }
   .add-btn:hover { opacity: 1; }
 
-  /* FOOTER */
-  #footer { position: fixed; bottom: 0; left: 0; right: 0; background: #0D0F18; border-top: 1px solid #1E2130; padding: 10px 16px; display: flex; justify-content: space-between; align-items: center; overflow-x: auto; gap: 12px; }
+  #footer { position: fixed; bottom: 0; left: 0; right: 0; background: #0D0F18; border-top: 1px solid #1E2130; padding: 10px 16px; display: flex; align-items: center; overflow-x: auto; gap: 12px; }
   .foot-area { text-align: center; flex-shrink: 0; }
   .foot-area-count { font-size: 13px; font-weight: 500; }
   .foot-area-label { font-size: 8px; color: #3A3D4A; letter-spacing: 0.5px; text-transform: uppercase; margin-top: 1px; }
-  #foot-pct { text-align: right; flex-shrink: 0; }
-  #foot-pct-num { font-family: 'Bebas Neue', sans-serif; font-size: 22px; letter-spacing: 1px; transition: color 0.4s; }
-  #foot-pct-label { font-size: 9px; color: #3A3D4A; }
 </style>
 </head>
 <body>
 
-<div id="header">
-  <div style="display:flex;align-items:baseline;flex-wrap:wrap;gap:6px">
+<div id="loading-screen">
+  <div class="spinner"></div>
+  <div id="loading-msg">CONECTANDO CON FIREBASE...</div>
+</div>
+
+<div id="sync-indicator">
+  <div class="sync-dot" id="sync-dot"></div>
+  <span id="sync-text">SINCRONIZADO</span>
+</div>
+
+<div id="header" style="display:none">
+  <div style="display:flex;align-items:baseline;flex-wrap:wrap;gap:6px;margin-bottom:2px">
     <span id="title">ENTREGA LUNCHBOX</span>
     <span id="subtitle">PUJ · AVIAM · <span id="today-date"></span></span>
   </div>
@@ -98,16 +107,28 @@
     <button class="filter-btn active" onclick="setFilter('all',this)">TODOS</button>
     <button class="filter-btn" onclick="setFilter('pending',this)">PENDIENTES</button>
     <button class="filter-btn" onclick="setFilter('done',this)">ENTREGADOS</button>
-    <button id="export-btn" onclick="exportExcel()">⬇ EXPORTAR EXCEL</button>
-    <button id="export-btn" onclick="resetState()" style="background:#374151;margin-left:auto">↺ REINICIAR</button>
+    <button class="action-btn" id="export-btn" onclick="exportExcel()">⬇ EXCEL</button>
+    <button class="action-btn" id="reset-btn" onclick="resetState()">↺ REINICIAR</button>
   </div>
 </div>
 
 <div id="areas"></div>
-
 <div id="footer"></div>
 
 <script>
+// ── Firebase ──────────────────────────────────────────────────
+firebase.initializeApp({
+  apiKey: "AIzaSyD4slf_9gdEI7zVEnTVsruoYmk3qLCQWd4",
+  authDomain: "airlines-support.firebaseapp.com",
+  projectId: "airlines-support",
+  storageBucket: "airlines-support.firebasestorage.app",
+  messagingSenderId: "138105289334",
+  appId: "1:138105289334:web:7a95e4f8392d4d60c83d57"
+});
+const db      = firebase.firestore();
+const DOC_REF = db.collection('lunchbox').doc('entrega_hoy');
+
+// ── Data ──────────────────────────────────────────────────────
 const AREAS = [
   { id:"carga", name:"Carga / Descarga", turno:"Por confirmar", color:"#F59E0B", people:[
     {id:6282,name:"Adrian Garcia"},{id:7157,name:"Alexis Celestino Rosario Cordero"},{id:6279,name:"Andy Isaias Herreras Garcia"},
@@ -145,9 +166,9 @@ const AREAS = [
     {id:4105,name:"Yael Alexander Gelabert"},{id:4859,name:"Yeury Santana"}
   ]},
   { id:"cobus", name:"Cobus", turno:"Mixto", color:"#F97316", people:[
-    {id:null,name:"Carlos Frangel",turno:"23:00–08:00"},{id:2331,name:"Domingo Polanco Mojica",turno:"23:00–08:00"},
-    {id:7111,name:"Eilhard Yobannys Perez",turno:"Por confirmar"},{id:null,name:"Elhelan Joan",turno:"15:00–00:00"},
-    {id:4560,name:"Isidro De Los Santos",turno:"15:00–00:00"},{id:null,name:"Jose Santana",turno:"15:00–00:00"},
+    {name:"Carlos Frangel",turno:"23:00–08:00"},{id:2331,name:"Domingo Polanco Mojica",turno:"23:00–08:00"},
+    {id:7111,name:"Eilhard Yobannys Perez",turno:"Por confirmar"},{name:"Elhelan Joan",turno:"15:00–00:00"},
+    {id:4560,name:"Isidro De Los Santos",turno:"15:00–00:00"},{name:"Jose Santana",turno:"15:00–00:00"},
     {id:1183,name:"Keny Antonio De Mota Reyes",turno:"Por confirmar"}
   ]},
   { id:"limpieza", name:"Limpieza", turno:"15:00–00:00", color:"#EC4899", people:[
@@ -189,14 +210,32 @@ const AREAS = [
   ]}
 ];
 
-// ── LocalStorage ─────────────────────────────────────────────
-const STORAGE_KEY = 'lunchbox_aviam_v2';
+// ── State ─────────────────────────────────────────────────────
+let state = [];
+let currentFilter = 'all';
+let saveTimeout   = null;
 
-// Save: checked set (areaId|name), collapsed set, manual list
-function saveState() {
-  const checked   = [];
-  const collapsed = [];
-  const manuals   = [];
+function buildState(savedData) {
+  const checkedSet   = new Set(savedData ? (savedData.checked   || []) : []);
+  const collapsedSet = new Set(savedData ? (savedData.collapsed || []) : []);
+  const savedManuals = savedData ? (savedData.manuals || []) : [];
+  return AREAS.map(a => {
+    const people = a.people.map((p, i) => ({
+      ...p, key: a.id + '_' + i,
+      checked: checkedSet.has(a.id + '|' + p.name),
+      manual: false
+    }));
+    savedManuals.filter(m => m.areaId === a.id).forEach(m => {
+      if (!people.find(p => p.name === m.name))
+        people.push({ name: m.name, key: a.id + '_m_' + m.name, checked: !!m.checked, manual: true });
+    });
+    people.sort((x, y) => x.name.localeCompare(y.name));
+    return { ...a, collapsed: collapsedSet.has(a.id), people };
+  });
+}
+
+function buildPayload() {
+  const checked = [], collapsed = [], manuals = [];
   state.forEach(a => {
     if (a.collapsed) collapsed.push(a.id);
     a.people.forEach(p => {
@@ -204,96 +243,71 @@ function saveState() {
       if (p.manual)  manuals.push({ areaId: a.id, name: p.name, checked: p.checked });
     });
   });
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify({ checked, collapsed, manuals }));
-  } catch(e) {}
+  return { checked, collapsed, manuals, updatedAt: firebase.firestore.FieldValue.serverTimestamp() };
 }
 
-// Load saved data (returns null if nothing)
-function getSaved() {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    return raw ? JSON.parse(raw) : null;
-  } catch(e) { return null; }
+// ── Sync indicator ────────────────────────────────────────────
+function setSyncStatus(s) {
+  const dot  = document.getElementById('sync-dot');
+  const txt  = document.getElementById('sync-text');
+  dot.className  = 'sync-dot' + (s === 'syncing' ? ' syncing' : s === 'error' ? ' error' : '');
+  txt.textContent = s === 'syncing' ? 'GUARDANDO...' : s === 'error' ? 'ERROR AL GUARDAR' : 'SINCRONIZADO';
 }
 
-// Build initial state, merging saved data if present
-const saved = getSaved();
-const checkedSet   = new Set(saved ? saved.checked   : []);
-const collapsedSet = new Set(saved ? saved.collapsed : []);
-const savedManuals = saved ? saved.manuals : [];
-
-let state = AREAS.map(a => {
-  // Base people
-  const people = a.people.map((p, i) => ({
-    ...p,
-    key:     a.id + '_' + i,
-    checked: checkedSet.has(a.id + '|' + p.name),
-    manual:  false
-  }));
-  // Re-inject manual entries saved previously
-  savedManuals.filter(m => m.areaId === a.id).forEach(m => {
-    if (!people.find(p => p.name === m.name)) {
-      people.push({ name: m.name, key: a.id + '_m_' + m.name, checked: m.checked, manual: true });
+function saveToFirebase() {
+  clearTimeout(saveTimeout);
+  setSyncStatus('syncing');
+  saveTimeout = setTimeout(async () => {
+    try {
+      await DOC_REF.set(buildPayload());
+      setSyncStatus('ok');
+    } catch(e) {
+      setSyncStatus('error');
+      console.error(e);
     }
-  });
-  people.sort((x, y) => x.name.localeCompare(y.name));
-  return { ...a, collapsed: collapsedSet.has(a.id), people };
-});
+  }, 500);
+}
 
-let currentFilter = 'all';
-
+// ── UI ────────────────────────────────────────────────────────
 function gk() { return Math.random().toString(36).substr(2,9); }
 
 function setDate() {
-  const d = new Date();
-  document.getElementById('today-date').textContent = d.toLocaleDateString('es-DO',{day:'2-digit',month:'short',year:'numeric'}).toUpperCase();
+  document.getElementById('today-date').textContent =
+    new Date().toLocaleDateString('es-DO',{day:'2-digit',month:'short',year:'numeric'}).toUpperCase();
 }
 
 function updateProgress() {
-  const total = state.reduce((s,a) => s + a.people.length, 0);
+  const total   = state.reduce((s,a) => s + a.people.length, 0);
   const checked = state.reduce((s,a) => s + a.people.filter(p=>p.checked).length, 0);
-  const pct = total > 0 ? Math.round(checked/total*100) : 0;
-  document.getElementById('prog-total').textContent = total;
+  const pct     = total > 0 ? Math.round(checked / total * 100) : 0;
+  document.getElementById('prog-total').textContent   = total;
   document.getElementById('prog-checked').textContent = checked;
-  document.getElementById('prog-pct').textContent = pct;
+  document.getElementById('prog-pct').textContent     = pct;
   document.getElementById('progress-bar-fill').style.width = pct + '%';
-  updateFooter(checked, total, pct);
-}
-
-function updateFooter(checked, total, pct) {
-  const el = document.getElementById('foot-pct-num');
-  el.textContent = pct + '%';
-  el.style.color = pct === 100 ? '#10B981' : '#E2E8F0';
-
   let html = '';
   state.forEach(a => {
-    const c = a.people.filter(p=>p.checked).length;
-    const t = a.people.length;
-    const done = c === t && t > 0;
+    const c = a.people.filter(p=>p.checked).length, t = a.people.length;
     html += `<div class="foot-area">
-      <div class="foot-area-count" style="color:${done ? a.color : '#E2E8F0'}">${c}/${t}</div>
-      <div class="foot-area-label">${a.name.split(' ')[0]}</div>
-    </div>`;
+      <div class="foot-area-count" style="color:${c===t&&t>0?a.color:'#E2E8F0'}">${c}/${t}</div>
+      <div class="foot-area-label">${a.name.split(' ')[0]}</div></div>`;
   });
-  document.getElementById('footer').innerHTML = html + `
-    <div id="foot-pct">
-      <div id="foot-pct-num" style="font-family:'Bebas Neue',sans-serif;font-size:22px;letter-spacing:1px;color:${pct===100?'#10B981':'#E2E8F0'}">${pct}%</div>
-      <div id="foot-pct-label" style="font-size:9px;color:#3A3D4A">COMPLETADO</div>
-    </div>`;
+  html += `<div style="text-align:right;flex-shrink:0;margin-left:auto">
+    <div style="font-family:'Bebas Neue',sans-serif;font-size:22px;letter-spacing:1px;color:${pct===100?'#10B981':'#E2E8F0'}">${pct}%</div>
+    <div style="font-size:9px;color:#3A3D4A">COMPLETADO</div></div>`;
+  document.getElementById('footer').innerHTML = html;
 }
 
 function updateAreaBar(areaId) {
   const a = state.find(x => x.id === areaId);
-  const c = a.people.filter(p=>p.checked).length;
-  const t = a.people.length;
+  const c = a.people.filter(p=>p.checked).length, t = a.people.length;
   const pct = t > 0 ? Math.round(c/t*100) : 0;
   const fill = document.querySelector(`[data-area="${areaId}"] .area-mini-bar-fill`);
-  const cnt = document.querySelector(`[data-area="${areaId}"] .area-count`);
+  const cnt  = document.querySelector(`[data-area="${areaId}"] .area-count`);
   if(fill) fill.style.width = pct + '%';
-  if(cnt) cnt.textContent = c + '/' + t;
+  if(cnt)  cnt.textContent  = c + '/' + t;
 }
 
+// ── Actions ───────────────────────────────────────────────────
 function toggleCheck(areaId, key) {
   const a = state.find(x => x.id === areaId);
   const p = a.people.find(x => x.key === key);
@@ -308,96 +322,86 @@ function toggleCheck(areaId, key) {
   }
   updateAreaBar(areaId);
   updateProgress();
-  saveState();
+  saveToFirebase();
 }
 
 function toggleCollapse(areaId) {
   const a = state.find(x => x.id === areaId);
   a.collapsed = !a.collapsed;
   const card = document.querySelector(`[data-area="${areaId}"]`);
-  const body = card.querySelector('.area-body');
-  const chev = card.querySelector('.area-chevron');
-  body.style.display = a.collapsed ? 'none' : 'block';
-  chev.textContent = a.collapsed ? '▶' : '▼';
-  saveState();
+  card.querySelector('.area-body').style.display    = a.collapsed ? 'none' : 'block';
+  card.querySelector('.area-chevron').textContent   = a.collapsed ? '▶' : '▼';
+  saveToFirebase();
 }
 
 function addPerson(areaId) {
   const input = document.querySelector(`[data-add="${areaId}"]`);
-  const name = input.value.trim();
+  const name  = input.value.trim();
   if(!name) return;
   const a = state.find(x => x.id === areaId);
-  const key = areaId + '_' + gk();
-  const newP = {name, key, checked: false, manual: true};
-  // insert alphabetically
-  a.people.push(newP);
+  a.people.push({ name, key: areaId + '_m_' + gk(), checked: false, manual: true });
   a.people.sort((x,y) => x.name.localeCompare(y.name));
   input.value = '';
-  // Re-render area body people
   renderAreaPeople(areaId);
   updateAreaBar(areaId);
   updateProgress();
-  saveState();
+  saveToFirebase();
 }
 
 function deletePerson(areaId, key) {
   const a = state.find(x => x.id === areaId);
   a.people = a.people.filter(p => p.key !== key);
-  const row = document.querySelector(`[data-key="${key}"]`);
-  if(row) row.remove();
+  document.querySelector(`[data-key="${key}"]`)?.remove();
   updateAreaBar(areaId);
   updateProgress();
-  saveState();
+  saveToFirebase();
 }
 
+function resetState() {
+  if(!confirm('¿Borrar todo el progreso guardado en Firebase?')) return;
+  DOC_REF.delete().then(() => location.reload()).catch(e => alert('Error: ' + e.message));
+}
+
+// ── Render ────────────────────────────────────────────────────
 function renderPersonRow(p, a) {
   const div = document.createElement('div');
-  div.className = 'person-row' + (p.checked ? ' done' : '');
-  div.dataset.key = p.key;
+  div.className    = 'person-row' + (p.checked ? ' done' : '');
+  div.dataset.key  = p.key;
   div.dataset.name = p.name.toLowerCase();
+  div.style.setProperty('--color', a.color);
 
   const cb = document.createElement('div');
   cb.className = 'checkbox' + (p.checked ? ' checked' : '');
   cb.style.background = p.checked ? a.color : 'transparent';
   cb.innerHTML = `<svg width="10" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4L3.5 6.5L9 1" stroke="white" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
-  
-  const nameWrap = document.createElement('div');
-  nameWrap.style.flex = '1';
-  nameWrap.style.cursor = 'pointer';
-  let nameHtml = `<span class="person-name">${p.name}</span>`;
-  if(p.id) nameHtml += `<span class="person-id">#${p.id}</span>`;
-  if(p.turno) nameHtml += `<span class="person-turno">${p.turno}</span>`;
-  if(p.manual) nameHtml += `<span class="manual-tag" style="color:${a.color}">+ manual</span>`;
-  nameWrap.innerHTML = nameHtml;
 
-  div.addEventListener('click', (e) => {
-    if(e.target.classList.contains('del-btn')) return;
-    toggleCheck(a.id, p.key);
-  });
+  const nw = document.createElement('div');
+  nw.style.flex = '1';
+  let html = `<span class="person-name">${p.name}</span>`;
+  if(p.id)     html += `<span class="person-id">#${p.id}</span>`;
+  if(p.turno)  html += `<span class="person-turno">${p.turno}</span>`;
+  if(p.manual) html += `<span class="manual-tag">+ manual</span>`;
+  nw.innerHTML = html;
 
+  div.addEventListener('click', e => { if(!e.target.classList.contains('del-btn')) toggleCheck(a.id, p.key); });
   div.appendChild(cb);
-  div.appendChild(nameWrap);
+  div.appendChild(nw);
 
   if(p.manual) {
     const del = document.createElement('button');
-    del.className = 'del-btn';
-    del.textContent = '✕';
-    del.addEventListener('click', (e) => { e.stopPropagation(); deletePerson(a.id, p.key); });
+    del.className = 'del-btn'; del.textContent = '✕';
+    del.addEventListener('click', e => { e.stopPropagation(); deletePerson(a.id, p.key); });
     div.appendChild(del);
   }
   return div;
 }
 
 function renderAreaPeople(areaId) {
-  const a = state.find(x => x.id === areaId);
+  const a    = state.find(x => x.id === areaId);
   const body = document.querySelector(`[data-area="${areaId}"] .area-body`);
-  // Remove old rows
   body.querySelectorAll('.person-row').forEach(r => r.remove());
-  // Add new rows before add-row
   const addRow = body.querySelector('.add-row');
-  a.people.forEach(p => {
-    body.insertBefore(renderPersonRow(p, a), addRow);
-  });
+  a.people.forEach(p => body.insertBefore(renderPersonRow(p, a), addRow));
   applyFilters();
 }
 
@@ -405,43 +409,32 @@ function renderAll() {
   const container = document.getElementById('areas');
   container.innerHTML = '';
   state.forEach(a => {
+    const c = a.people.filter(p=>p.checked).length, t = a.people.length;
+    const pct = t > 0 ? Math.round(c/t*100) : 0;
     const card = document.createElement('div');
-    card.className = 'area-card';
-    card.dataset.area = a.id;
+    card.className = 'area-card'; card.dataset.area = a.id;
     card.style.setProperty('--color', a.color);
-
-    const total = a.people.length;
-    const checked = a.people.filter(p=>p.checked).length;
-    const pct = total > 0 ? Math.round(checked/total*100) : 0;
-
     card.innerHTML = `
       <div class="area-header" onclick="toggleCollapse('${a.id}')">
         <div style="flex:1">
-          <div>
-            <span class="area-title">${a.name}</span>
-            <span class="area-badge">${a.turno}</span>
-          </div>
+          <div><span class="area-title">${a.name}</span><span class="area-badge">${a.turno}</span></div>
           <div class="area-mini-bar-wrap">
             <div class="area-mini-bar-track"><div class="area-mini-bar-fill" style="width:${pct}%"></div></div>
-            <span class="area-count">${checked}/${total}</span>
+            <span class="area-count">${c}/${t}</span>
           </div>
         </div>
-        <span class="area-chevron">▼</span>
+        <span class="area-chevron">${a.collapsed?'▶':'▼'}</span>
       </div>
-      <div class="area-body" ${a.collapsed ? 'style="display:none"' : ''}>
+      <div class="area-body" ${a.collapsed?'style="display:none"':''}>
         <div class="add-row">
           <span class="add-label">+</span>
           <input class="add-input" data-add="${a.id}" placeholder="Agregar nombre..." onkeydown="if(event.key==='Enter') addPerson('${a.id}')">
           <button class="add-btn" onclick="addPerson('${a.id}')">↵</button>
         </div>
       </div>`;
-
     const body = card.querySelector('.area-body');
     const addRow = body.querySelector('.add-row');
-    a.people.forEach(p => {
-      body.insertBefore(renderPersonRow(p, a), addRow);
-    });
-
+    a.people.forEach(p => body.insertBefore(renderPersonRow(p, a), addRow));
     container.appendChild(card);
   });
   updateProgress();
@@ -457,90 +450,57 @@ function setFilter(f, btn) {
 function applyFilters() {
   const search = document.getElementById('search').value.toLowerCase();
   document.querySelectorAll('.person-row').forEach(row => {
-    const name = row.dataset.name || '';
-    const checked = row.classList.contains('done');
-    const matchSearch = name.includes(search);
-    const matchFilter = currentFilter === 'all' || (currentFilter === 'pending' && !checked) || (currentFilter === 'done' && checked);
-    row.classList.toggle('hidden', !(matchSearch && matchFilter));
+    const ok = row.dataset.name.includes(search) &&
+      (currentFilter==='all' || (currentFilter==='pending'&&!row.classList.contains('done')) || (currentFilter==='done'&&row.classList.contains('done')));
+    row.classList.toggle('hidden', !ok);
   });
 }
 
-function resetState() {
-  if (!confirm('¿Seguro que quieres borrar todo el progreso guardado?')) return;
-  localStorage.removeItem(STORAGE_KEY);
-  location.reload();
-}
-
+// ── Excel ─────────────────────────────────────────────────────
 function exportExcel() {
   const wb = XLSX.utils.book_new();
-
-  // --- Sheet 1: Resumen General ---
-  const resumen = [
-    ['ENTREGA LUNCHBOX – AVIAM PUJ', '', '', '', ''],
-    ['Fecha:', new Date().toLocaleDateString('es-DO', {day:'2-digit',month:'long',year:'numeric'}), '', '', ''],
-    ['', '', '', '', ''],
-    ['ÁREA', 'TURNO', 'ENTREGADOS', 'PENDIENTES', 'TOTAL'],
-  ];
-  state.forEach(a => {
-    const c = a.people.filter(p => p.checked).length;
-    const t = a.people.length;
-    resumen.push([a.name, a.turno, c, t - c, t]);
-  });
-  const totalC = state.reduce((s,a) => s + a.people.filter(p=>p.checked).length, 0);
-  const totalT = state.reduce((s,a) => s + a.people.length, 0);
-  resumen.push(['', '', '', '', '']);
-  resumen.push(['TOTAL GENERAL', '', totalC, totalT - totalC, totalT]);
-
-  const wsResumen = XLSX.utils.aoa_to_sheet(resumen);
-  wsResumen['!cols'] = [{wch:30},{wch:18},{wch:14},{wch:14},{wch:10}];
-  XLSX.utils.book_append_sheet(wb, wsResumen, 'Resumen');
-
-  // --- Sheet 2: Detalle completo ---
-  const detalle = [['NO. EMPLEADO', 'NOMBRE', 'ÁREA', 'TURNO', 'ESTADO', 'MANUAL']];
-  state.forEach(a => {
-    a.people.forEach(p => {
-      detalle.push([
-        p.id || '',
-        p.name,
-        a.name,
-        p.turno || a.turno,
-        p.checked ? 'ENTREGADO' : 'PENDIENTE',
-        p.manual ? 'SÍ' : 'NO'
-      ]);
-    });
-  });
-  const wsDetalle = XLSX.utils.aoa_to_sheet(detalle);
-  wsDetalle['!cols'] = [{wch:14},{wch:36},{wch:26},{wch:16},{wch:12},{wch:8}];
-  XLSX.utils.book_append_sheet(wb, wsDetalle, 'Detalle');
-
-  // --- Sheet 3: Solo pendientes ---
-  const pendientes = [['NO. EMPLEADO', 'NOMBRE', 'ÁREA', 'TURNO']];
-  state.forEach(a => {
-    a.people.filter(p => !p.checked).forEach(p => {
-      pendientes.push([p.id || '', p.name, a.name, p.turno || a.turno]);
-    });
-  });
-  const wsPend = XLSX.utils.aoa_to_sheet(pendientes);
-  wsPend['!cols'] = [{wch:14},{wch:36},{wch:26},{wch:16}];
-  XLSX.utils.book_append_sheet(wb, wsPend, 'Pendientes');
-
-  // --- Sheet 4: Solo entregados ---
-  const entregados = [['NO. EMPLEADO', 'NOMBRE', 'ÁREA', 'TURNO']];
-  state.forEach(a => {
-    a.people.filter(p => p.checked).forEach(p => {
-      entregados.push([p.id || '', p.name, a.name, p.turno || a.turno]);
-    });
-  });
-  const wsEntr = XLSX.utils.aoa_to_sheet(entregados);
-  wsEntr['!cols'] = [{wch:14},{wch:36},{wch:26},{wch:16}];
-  XLSX.utils.book_append_sheet(wb, wsEntr, 'Entregados');
-
-  const fecha = new Date().toLocaleDateString('es-DO',{day:'2-digit',month:'2-digit',year:'numeric'}).replace(/\//g,'-');
-  XLSX.writeFile(wb, `Lunchbox_AVIAM_${fecha}.xlsx`);
+  const resumen = [['ENTREGA LUNCHBOX – AVIAM PUJ','','','',''],
+    ['Fecha:',new Date().toLocaleDateString('es-DO',{day:'2-digit',month:'long',year:'numeric'}),'','',''],
+    ['','','','',''],['ÁREA','TURNO','ENTREGADOS','PENDIENTES','TOTAL']];
+  state.forEach(a => { const c=a.people.filter(p=>p.checked).length; resumen.push([a.name,a.turno,c,a.people.length-c,a.people.length]); });
+  const tC=state.reduce((s,a)=>s+a.people.filter(p=>p.checked).length,0), tT=state.reduce((s,a)=>s+a.people.length,0);
+  resumen.push(['','','','',''],['TOTAL GENERAL','',tC,tT-tC,tT]);
+  const ws1=XLSX.utils.aoa_to_sheet(resumen); ws1['!cols']=[{wch:30},{wch:18},{wch:14},{wch:14},{wch:10}];
+  XLSX.utils.book_append_sheet(wb,ws1,'Resumen');
+  const det=[['NO. EMPLEADO','NOMBRE','ÁREA','TURNO','ESTADO','MANUAL']];
+  state.forEach(a=>a.people.forEach(p=>det.push([p.id||'',p.name,a.name,p.turno||a.turno,p.checked?'ENTREGADO':'PENDIENTE',p.manual?'SÍ':'NO'])));
+  const ws2=XLSX.utils.aoa_to_sheet(det); ws2['!cols']=[{wch:14},{wch:36},{wch:26},{wch:16},{wch:12},{wch:8}];
+  XLSX.utils.book_append_sheet(wb,ws2,'Detalle');
+  const pend=[['NO. EMPLEADO','NOMBRE','ÁREA','TURNO']];
+  state.forEach(a=>a.people.filter(p=>!p.checked).forEach(p=>pend.push([p.id||'',p.name,a.name,p.turno||a.turno])));
+  const ws3=XLSX.utils.aoa_to_sheet(pend); ws3['!cols']=[{wch:14},{wch:36},{wch:26},{wch:16}];
+  XLSX.utils.book_append_sheet(wb,ws3,'Pendientes');
+  const entr=[['NO. EMPLEADO','NOMBRE','ÁREA','TURNO']];
+  state.forEach(a=>a.people.filter(p=>p.checked).forEach(p=>entr.push([p.id||'',p.name,a.name,p.turno||a.turno])));
+  const ws4=XLSX.utils.aoa_to_sheet(entr); ws4['!cols']=[{wch:14},{wch:36},{wch:26},{wch:16}];
+  XLSX.utils.book_append_sheet(wb,ws4,'Entregados');
+  XLSX.writeFile(wb,`Lunchbox_AVIAM_${new Date().toLocaleDateString('es-DO',{day:'2-digit',month:'2-digit',year:'numeric'}).replace(/\//g,'-')}.xlsx`);
 }
 
-setDate();
-renderAll();
+// ── Boot ──────────────────────────────────────────────────────
+async function init() {
+  setDate();
+  try {
+    document.getElementById('loading-msg').textContent = 'CARGANDO DATOS...';
+    const doc = await DOC_REF.get();
+    state = buildState(doc.exists ? doc.data() : null);
+  } catch(e) {
+    console.error('Firebase load error:', e);
+    document.getElementById('loading-msg').textContent = 'SIN CONEXIÓN – MODO LOCAL';
+    await new Promise(r => setTimeout(r, 1500));
+    state = buildState(null);
+  }
+  document.getElementById('loading-screen').style.display = 'none';
+  document.getElementById('header').style.display = 'block';
+  renderAll();
+}
+
+init();
 </script>
 </body>
 </html>
