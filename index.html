@@ -1,385 +1,413 @@
-import { useState } from "react";
-import * as XLSX from "xlsx";
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Entrega Lunchbox – AVIAM PUJ</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: #0F1117; color: #E2E8F0; font-family: 'DM Mono', 'Courier New', monospace; min-height: 100vh; padding-bottom: 90px; }
+  ::-webkit-scrollbar { width: 4px; } ::-webkit-scrollbar-track { background: #1A1D27; } ::-webkit-scrollbar-thumb { background: #3A3D4A; border-radius: 2px; }
 
-const AREAS_DATA = [
-  {
-    id: "carga", name: "Carga / Descarga", turno: "Por confirmar", color: "#F59E0B",
-    people: [
-      { id: 6282, name: "Adrian Garcia" }, { id: 7157, name: "Alexis Celestino Rosario Cordero" },
-      { id: 6279, name: "Andy Isaias Herreras Garcia" }, { id: 6382, name: "Aritnewton Borgen De La Paz" },
-      { id: 6330, name: "Edwin Mercedes Serrano" }, { id: 3001, name: "Emmanuel Brioso" },
-      { id: 6346, name: "Eric Ericson Eusebio" }, { id: 6701, name: "Erick Jones Castillo" },
-      { id: 7224, name: "Francis Alexander Gonzalez Gerardo" }, { id: 6371, name: "Franklin Jesuito Agramonte Ferrera" },
-      { id: 7034, name: "Henry Guy Mercedes De Los Santos" }, { id: 7160, name: "Joandy Emmanuel Puerie Mercedes" },
-      { id: 7840, name: "Jorge Luis Lopez Peguero" }, { id: 6075, name: "Jose Angel Gomez Castillo" },
-      { id: 6068, name: "Jose Daniel Alvarado Escolastico" }, { id: 4351, name: "Jose Eduardo Maldonado" },
-      { id: 7244, name: "Josia Samuel Tirana De Aza" }, { id: 2183, name: "Julio Joaquin Carrion Matos" },
-      { id: 4056, name: "Kendry Ciprian Santana" }, { id: 7834, name: "Kendry Joel Melo Peralta" },
-      { id: 1192, name: "Luis Alberto Mejia Eusebio" }, { id: 6319, name: "Luis Angel Reynoso Frias" },
-      { id: 4015, name: "Luis Carlos Lachapel Constanzo" }, { id: 6362, name: "Luis Jose Payan Santana" },
-      { id: 5397, name: "Luis Mario Del Orbe Escolastico" }, { id: 6749, name: "Marcos Bastardo Mazara" },
-      { id: 6739, name: "Margarito Andres Matos" }, { id: 7301, name: "Miguel Angel Del Orbe Almanzar" },
-      { id: 6332, name: "Milton Manuel Bastardo Mota" }, { id: 3649, name: "Odinel Espinal Espinal" },
-      { id: 7472, name: "Oliver De La Cruz Sarante" }, { id: 7012, name: "Samil Gabriel Espinal Encarnacion" },
-      { id: 7624, name: "Samuel Zapata" }, { id: 3645, name: "Starlin Sanchez Morillo" },
-      { id: 1815, name: "Urbano Montero Diaz" }, { id: 4057, name: "Victor Manuel Rosillen Marte" },
-      { id: 5830, name: "Victor Michael Mendoza" }, { id: 6044, name: "Wanel Miguel Del Rosario Ramirez" },
-      { id: 8141, name: "Wellington Junior Nuez Ramirez" }, { id: 7038, name: "Wilbert Junior Vasquez Maldonado" },
-      { id: 6681, name: "Yoandy Luzon Santos" }, { id: 1333, name: "Ynocencio Castro Hernandez" },
-    ],
-  },
-  {
-    id: "makeup", name: "Make Up", turno: "Por confirmar", color: "#8B5CF6",
-    people: [
-      { id: 7105, name: "Adony Yan Pie" }, { id: 7582, name: "Adriel Alexander Natera" },
-      { id: 7479, name: "Alex Castro" }, { id: 6231, name: "Aneudi Salvador Nova Santana" },
-      { id: 6079, name: "Angel Reyes" }, { id: 1710, name: "Bryan Alessandry Soliman Avila" },
-      { id: 7596, name: "Carlos Manuel Tusen Pie" }, { id: 6844, name: "Erick Sanchez Minaya" },
-      { id: 8050, name: "Frankerlyn Alvarez" }, { id: 1675, name: "Gustavo Abad" },
-      { id: 6440, name: "John Luis Morfe Henriquez" }, { id: 6033, name: "Jose Francisco Perez Feliz" },
-      { id: 6907, name: "Juan Ramon Tavarez Castillo" }, { id: 4118, name: "Manolo Falcon Rodriguez" },
-      { id: 7871, name: "Orlando Alexander Morillo" }, { id: 6544, name: "Oscar Eduardo Bassil Yantil" },
-      { id: 6298, name: "Rafael Alberto Beltre Vargas" }, { id: 6903, name: "Robert Jeyson Sanchez Matos" },
-      { id: 7344, name: "Robert Rijo" }, { id: 8125, name: "Wilfredo Montero" },
-      { id: 7978, name: "Yeilin Rodriguez De La Cruz" },
-    ],
-  },
-  {
-    id: "aduanas", name: "Aduanas / ULD", turno: "Por confirmar", color: "#06B6D4",
-    people: [
-      { id: 6747, name: "Abraham Santana Gonzalez" }, { id: 3728, name: "Aneudy Isaias Medina Carpio" },
-      { id: 5124, name: "Brayner Florentino Jimenez" }, { id: 2028, name: "David Cuevas Encarnacion" },
-      { id: 7094, name: "Fausto Yedi" }, { id: 7916, name: "Jeferson Caraballo Ubiera" },
-      { id: 7697, name: "Jeuris Junior Fernandez Felix" }, { id: 7919, name: "Joel Alexander Arias Rivera" },
-      { id: 4041, name: "Josue Henriquez Rosario" }, { id: 3497, name: "Keisy Jose Mota Castillo" },
-      { id: 4181, name: "Victor Geraldo Arias" }, { id: 253, name: "Wilky Antonio Feliz (Supervisor)" },
-    ],
-  },
-  {
-    id: "runners", name: "Runners", turno: "Por confirmar", color: "#10B981",
-    people: [
-      { id: 2894, name: "Jose Enrique Consoro Guzman" }, { id: 2281, name: "Rosanna Moreno" },
-      { id: 1641, name: "Samuel Castillo Rodriguez" }, { id: 4105, name: "Yael Alexander Gelabert" },
-      { id: 4859, name: "Yeury Santana" },
-    ],
-  },
-  {
-    id: "cobus", name: "Cobus", turno: "Mixto", color: "#F97316",
-    people: [
-      { id: null, name: "Carlos Frangel", turno: "23:00-08:00" },
-      { id: 2331, name: "Domingo Polanco Mojica", turno: "23:00-08:00" },
-      { id: 7111, name: "Eilhard Yobannys Perez", turno: "Por confirmar" },
-      { id: null, name: "Elhelan Joan", turno: "15:00-00:00" },
-      { id: 4560, name: "Isidro De Los Santos", turno: "15:00-00:00" },
-      { id: null, name: "Jose Santana", turno: "15:00-00:00" },
-      { id: 1183, name: "Keny Antonio De Mota Reyes", turno: "Por confirmar" },
-    ],
-  },
-  {
-    id: "limpieza", name: "Limpieza", turno: "15:00-00:00", color: "#EC4899",
-    people: [
-      { id: 7619, name: "Alexandra Alcantara" }, { id: 7384, name: "Amy Nayaris Melo Cuevas" },
-      { id: 2644, name: "Ana Dionicia Dilone" }, { id: 4924, name: "Andreina Buayan" },
-      { id: 6614, name: "Angely Lopez" }, { id: 4851, name: "Anne Berkis Bune" },
-      { id: 7620, name: "Arieli Solano" }, { id: 5413, name: "Benita Pamela Batista" },
-      { id: 3621, name: "Breilyn Yajahira Rivera" }, { id: 2620, name: "Charleny Jimenez" },
-      { id: 7354, name: "Deisy Romero" }, { id: 4933, name: "Deyanida Vicente" },
-      { id: 6028, name: "Dilsia Diaz Ramos" }, { id: 7280, name: "Dineydys Encarnacion" },
-      { id: 5336, name: "Dulce Alvarez Jimenez" }, { id: 7530, name: "Dulce Maria Pinales Suero" },
-      { id: 7467, name: "Eneroliza Salmiento" }, { id: 7688, name: "Erodis Guevara Urbaez" },
-      { id: 7148, name: "Esther Geronimo" }, { id: 7606, name: "Esthepany Romero" },
-      { id: 2318, name: "Genara Moreta Perez" }, { id: 7691, name: "Ivelia Altagracia Concepcion Pichardo" },
-      { id: 5245, name: "Julia Silvestre Trinidad" }, { id: 7279, name: "Kianni Lopez Perdomo" },
-      { id: 7271, name: "Lancy Milagros Montero" }, { id: 7552, name: "Leidy Rodriguez Reyes" },
-      { id: 7270, name: "Lismilda Cespedes Matos" }, { id: 7569, name: "Magdelyn Torres" },
-      { id: 7622, name: "Manuela Santana" }, { id: 7278, name: "Maribel De La Cruz Perez" },
-      { id: 6730, name: "Maria Del Rosario" }, { id: 5339, name: "Maria Neilly Encarnacion" },
-      { id: 3413, name: "Margarita Frias Acosta" }, { id: 4927, name: "Marialis Noel" },
-      { id: 4869, name: "Nally Estefani Gil" }, { id: 6809, name: "Nathalie Pina" },
-      { id: 7518, name: "Nayeli Elizabeth Roman" }, { id: 7690, name: "Rhina Margarita Ramirez Diaz" },
-      { id: 6143, name: "Rogelina Moreno" }, { id: 6669, name: "Rosmery Feliciano" },
-      { id: 5412, name: "Ruth Del Rosario Molina" }, { id: 3224, name: "Sairiely N. Avelino" },
-      { id: 2933, name: "Sirena Sanchez" }, { id: 273, name: "Teresa Santana" },
-      { id: 7376, name: "Thania Ozorio Ulloa" }, { id: 6727, name: "Wenddy Jose" },
-      { id: 2064, name: "Yacquelyn Medina" }, { id: 7380, name: "Yeimy Albino Mateo" },
-      { id: 7018, name: "Yubelkis Ramirez" }, { id: 7017, name: "Yinaury Zorrilla" },
-    ],
-  },
-  {
-    id: "bano", name: "Bano y Agua Potable", turno: "15:00-00:00", color: "#3B82F6",
-    people: [
-      { id: null, name: "Carlos Rafael Arias Taveras" }, { id: null, name: "Edward Figueroa" },
-      { id: null, name: "Egensson Joseph" }, { id: null, name: "Francis Abreu Robiu" },
-      { id: null, name: "Jesus Alberto De Los Santos Laureano" }, { id: null, name: "Juan Francisco Leger" },
-      { id: null, name: "Luis Estarlin Denis Bock" }, { id: null, name: "Raymi Rodriguez" },
-      { id: null, name: "Rolando Villegas" }, { id: null, name: "Rusbel Leonardo Francisco Carrion" },
-      { id: null, name: "Victor Manuel Mejia" },
-    ],
-  },
-  {
-    id: "seguridad", name: "Seguridad Fisica / AVSEC", turno: "Por confirmar", color: "#EF4444",
-    people: [
-      { id: null, name: "Alexis De Leon" }, { id: null, name: "Denis Valenzuela" },
-      { id: null, name: "Dilcia Perez" }, { id: null, name: "Francisco Guzman" },
-      { id: null, name: "Johny Eusebio" }, { id: null, name: "Jordany Nunez" },
-      { id: null, name: "Juana Ramos" }, { id: null, name: "Lizandro Reyes" },
-      { id: null, name: "Martina Guerrero" }, { id: null, name: "Morelia Mercedes" },
-      { id: null, name: "Nicolle Mercedes" }, { id: null, name: "Randy De Aza" },
-      { id: null, name: "Wilson Diaz" }, { id: null, name: "Yuveri Sosa" },
-    ],
-  },
-  {
-    id: "mantenimiento", name: "Mantenimiento", turno: "23:00-08:00", color: "#84CC16",
-    people: [
-      { id: null, name: "Abner Laureano" },
-      { id: null, name: "Fernando Pierre" },
-      { id: null, name: "Johan Martinez" },
-    ],
-  },
+  /* HEADER */
+  #header { background: #13151F; border-bottom: 1px solid #1E2130; padding: 18px 16px 14px; position: sticky; top: 0; z-index: 100; }
+  #title { font-family: 'Bebas Neue', sans-serif; font-size: 26px; letter-spacing: 2px; color: #E2E8F0; }
+  #subtitle { font-size: 10px; color: #4A4D6A; letter-spacing: 1px; margin-left: 10px; }
+  .progress-label { display: flex; justify-content: space-between; margin: 12px 0 5px; font-size: 11px; color: #64748B; }
+  .progress-label span:last-child { color: #94A3B8; }
+  #progress-bar-track { height: 4px; background: #1E2130; border-radius: 2px; overflow: hidden; margin-bottom: 12px; }
+  #progress-bar-fill { height: 100%; width: 0%; background: linear-gradient(90deg, #6366F1, #8B5CF6); border-radius: 2px; transition: width 0.4s ease; }
+  #search { width: 100%; background: #1A1D27; border: 1px solid #2D3148; border-radius: 6px; color: #E2E8F0; font-family: inherit; font-size: 12px; padding: 8px 12px; outline: none; margin-bottom: 10px; transition: border-color 0.2s; }
+  #search:focus { border-color: #6366F1; }
+  #search::placeholder { color: #3D4460; }
+  .filters { display: flex; gap: 6px; flex-wrap: wrap; }
+  .filter-btn { background: none; border: 1px solid #2D3148; border-radius: 4px; color: #64748B; cursor: pointer; font-family: inherit; font-size: 11px; padding: 5px 12px; letter-spacing: 0.05em; transition: all 0.15s; }
+  .filter-btn.active { background: #6366F1; border-color: #6366F1; color: white; }
+  .filter-btn:hover:not(.active) { border-color: #4A4D6A; color: #94A3B8; }
+
+  /* AREAS */
+  #areas { padding: 12px 16px; display: flex; flex-direction: column; gap: 10px; }
+  .area-card { background: #13151F; border: 1px solid #1E2130; border-radius: 10px; overflow: hidden; }
+  .area-header { display: flex; align-items: center; gap: 10px; padding: 12px 14px; cursor: pointer; user-select: none; border-left: 3px solid var(--color); transition: opacity 0.15s; }
+  .area-header:hover { opacity: 0.85; }
+  .area-title { font-family: 'Bebas Neue', sans-serif; font-size: 16px; letter-spacing: 1px; color: var(--color); }
+  .area-badge { font-size: 9px; background: #1E2130; color: #64748B; padding: 2px 6px; border-radius: 3px; letter-spacing: 0.5px; margin-left: 6px; }
+  .area-mini-bar-wrap { display: flex; align-items: center; gap: 8px; margin-top: 4px; }
+  .area-mini-bar-track { flex: 1; height: 2px; background: #1E2130; border-radius: 1px; }
+  .area-mini-bar-fill { height: 100%; background: var(--color); border-radius: 1px; transition: width 0.3s; }
+  .area-count { font-size: 10px; color: #64748B; white-space: nowrap; }
+  .area-chevron { font-size: 11px; color: #3A3D4A; margin-left: auto; flex-shrink: 0; }
+  .area-body { padding: 4px 14px 12px; }
+
+  /* ROWS */
+  .person-row { display: flex; align-items: center; gap: 10px; padding: 7px 4px; border-radius: 6px; transition: background 0.15s; cursor: pointer; }
+  .person-row:hover { background: rgba(255,255,255,0.04); }
+  .person-row.done { opacity: 0.4; }
+  .person-row.hidden { display: none; }
+  .checkbox { width: 18px; height: 18px; border-radius: 4px; border: 1.5px solid #3A3D4A; display: flex; align-items: center; justify-content: center; flex-shrink: 0; transition: all 0.15s; }
+  .checkbox.checked { border-color: transparent; }
+  .checkbox svg { display: none; }
+  .checkbox.checked svg { display: block; }
+  .person-name { font-size: 12px; color: #CBD5E1; flex: 1; transition: color 0.15s; }
+  .done .person-name { color: #4A4D6A; text-decoration: line-through; }
+  .person-id { font-size: 10px; color: #3A3D4A; margin-left: 6px; }
+  .person-turno { font-size: 9px; color: #4A5568; background: #1A1D27; padding: 1px 5px; border-radius: 3px; margin-left: 4px; }
+  .manual-tag { font-size: 9px; color: var(--color); opacity: 0.6; margin-left: 4px; }
+  .del-btn { background: none; border: none; cursor: pointer; color: #EF4444; font-size: 11px; padding: 2px 5px; opacity: 0; transition: opacity 0.15s; flex-shrink: 0; }
+  .person-row:hover .del-btn { opacity: 0.6; }
+  .del-btn:hover { opacity: 1 !important; }
+
+  /* ADD ROW */
+  .add-row { display: flex; align-items: center; gap: 8px; margin-top: 8px; padding-top: 8px; border-top: 1px solid #1A1D27; }
+  .add-label { font-size: 12px; color: #3A3D4A; }
+  .add-input { background: transparent; border: none; border-bottom: 1px solid #2D3148; color: #94A3B8; font-family: inherit; font-size: 12px; outline: none; flex: 1; padding: 4px 0; transition: border-color 0.2s, color 0.2s; }
+  .add-input::placeholder { color: #3D4460; }
+  .add-input:focus { border-bottom-color: #6366F1; color: #E2E8F0; }
+  .add-btn { background: none; border: none; cursor: pointer; font-size: 15px; color: #94A3B8; opacity: 0.5; padding: 2px 6px; transition: opacity 0.2s; }
+  .add-btn:hover { opacity: 1; }
+
+  /* FOOTER */
+  #footer { position: fixed; bottom: 0; left: 0; right: 0; background: #0D0F18; border-top: 1px solid #1E2130; padding: 10px 16px; display: flex; justify-content: space-between; align-items: center; overflow-x: auto; gap: 12px; }
+  .foot-area { text-align: center; flex-shrink: 0; }
+  .foot-area-count { font-size: 13px; font-weight: 500; }
+  .foot-area-label { font-size: 8px; color: #3A3D4A; letter-spacing: 0.5px; text-transform: uppercase; margin-top: 1px; }
+  #foot-pct { text-align: right; flex-shrink: 0; }
+  #foot-pct-num { font-family: 'Bebas Neue', sans-serif; font-size: 22px; letter-spacing: 1px; transition: color 0.4s; }
+  #foot-pct-label { font-size: 9px; color: #3A3D4A; }
+</style>
+</head>
+<body>
+
+<div id="header">
+  <div style="display:flex;align-items:baseline;flex-wrap:wrap;gap:6px">
+    <span id="title">ENTREGA LUNCHBOX</span>
+    <span id="subtitle">PUJ · AVIAM · <span id="today-date"></span></span>
+  </div>
+  <div class="progress-label">
+    <span>PROGRESO</span>
+    <span><span id="prog-checked">0</span> / <span id="prog-total">0</span> entregadas (<span id="prog-pct">0</span>%)</span>
+  </div>
+  <div id="progress-bar-track"><div id="progress-bar-fill"></div></div>
+  <input id="search" type="text" placeholder="Buscar empleado..." oninput="applyFilters()">
+  <div class="filters">
+    <button class="filter-btn active" onclick="setFilter('all',this)">TODOS</button>
+    <button class="filter-btn" onclick="setFilter('pending',this)">PENDIENTES</button>
+    <button class="filter-btn" onclick="setFilter('done',this)">ENTREGADOS</button>
+  </div>
+</div>
+
+<div id="areas"></div>
+
+<div id="footer"></div>
+
+<script>
+const AREAS = [
+  { id:"carga", name:"Carga / Descarga", turno:"Por confirmar", color:"#F59E0B", people:[
+    {id:6282,name:"Adrian Garcia"},{id:7157,name:"Alexis Celestino Rosario Cordero"},{id:6279,name:"Andy Isaias Herreras Garcia"},
+    {id:6382,name:"Aritnewton Borgen De La Paz"},{id:6330,name:"Edwin Mercedes Serrano"},{id:3001,name:"Emmanuel Brioso"},
+    {id:6346,name:"Eric Ericson Eusebio"},{id:6701,name:"Erick Jones Castillo"},{id:7224,name:"Francis Alexander Gonzalez Gerardo"},
+    {id:6371,name:"Franklin Jesuito Agramonte Ferrera"},{id:7034,name:"Henry Guy Mercedes De Los Santos"},{id:7160,name:"Joandy Emmanuel Puerie Mercedes"},
+    {id:7840,name:"Jorge Luis Lopez Peguero"},{id:6075,name:"Jose Angel Gomez Castillo"},{id:6068,name:"Jose Daniel Alvarado Escolastico"},
+    {id:4351,name:"Jose Eduardo Maldonado"},{id:7244,name:"Josia Samuel Tirana De Aza"},{id:2183,name:"Julio Joaquin Carrion Matos"},
+    {id:4056,name:"Kendry Ciprian Santana"},{id:7834,name:"Kendry Joel Melo Peralta"},{id:1192,name:"Luis Alberto Mejia Eusebio"},
+    {id:6319,name:"Luis Angel Reynoso Frias"},{id:4015,name:"Luis Carlos Lachapel Constanzo"},{id:6362,name:"Luis Jose Payan Santana"},
+    {id:5397,name:"Luis Mario Del Orbe Escolastico"},{id:6749,name:"Marcos Bastardo Mazara"},{id:6739,name:"Margarito Andres Matos"},
+    {id:7301,name:"Miguel Angel Del Orbe Almanzar"},{id:6332,name:"Milton Manuel Bastardo Mota"},{id:3649,name:"Odinel Espinal Espinal"},
+    {id:7472,name:"Oliver De La Cruz Sarante"},{id:7012,name:"Samil Gabriel Espinal Encarnacion"},{id:7624,name:"Samuel Zapata"},
+    {id:3645,name:"Starlin Sanchez Morillo"},{id:1815,name:"Urbano Montero Diaz"},{id:4057,name:"Victor Manuel Rosillen Marte"},
+    {id:5830,name:"Victor Michael Mendoza"},{id:6044,name:"Wanel Miguel Del Rosario Ramirez"},{id:8141,name:"Wellington Junior Nuez Ramirez"},
+    {id:7038,name:"Wilbert Junior Vasquez Maldonado"},{id:6681,name:"Yoandy Luzon Santos"},{id:1333,name:"Ynocencio Castro Hernandez"}
+  ]},
+  { id:"makeup", name:"Make Up", turno:"Por confirmar", color:"#8B5CF6", people:[
+    {id:7105,name:"Adony Yan Pie"},{id:7582,name:"Adriel Alexander Natera"},{id:7479,name:"Alex Castro"},
+    {id:6231,name:"Aneudi Salvador Nova Santana"},{id:6079,name:"Angel Reyes"},{id:1710,name:"Bryan Alessandry Soliman Avila"},
+    {id:7596,name:"Carlos Manuel Tusen Pie"},{id:6844,name:"Erick Sanchez Minaya"},{id:8050,name:"Frankerlyn Alvarez"},
+    {id:1675,name:"Gustavo Abad"},{id:6440,name:"John Luis Morfe Henriquez"},{id:6033,name:"Jose Francisco Perez Feliz"},
+    {id:6907,name:"Juan Ramon Tavarez Castillo"},{id:4118,name:"Manolo Falcon Rodriguez"},{id:7871,name:"Orlando Alexander Morillo"},
+    {id:6544,name:"Oscar Eduardo Bassil Yantil"},{id:6298,name:"Rafael Alberto Beltre Vargas"},{id:6903,name:"Robert Jeyson Sanchez Matos"},
+    {id:7344,name:"Robert Rijo"},{id:8125,name:"Wilfredo Montero"},{id:7978,name:"Yeilin Rodriguez De La Cruz"}
+  ]},
+  { id:"aduanas", name:"Aduanas / ULD", turno:"Por confirmar", color:"#06B6D4", people:[
+    {id:6747,name:"Abraham Santana Gonzalez"},{id:3728,name:"Aneudy Isaias Medina Carpio"},{id:5124,name:"Brayner Florentino Jimenez"},
+    {id:2028,name:"David Cuevas Encarnacion"},{id:7094,name:"Fausto Yedi"},{id:7916,name:"Jeferson Caraballo Ubiera"},
+    {id:7697,name:"Jeuris Junior Fernandez Felix"},{id:7919,name:"Joel Alexander Arias Rivera"},{id:4041,name:"Josue Henriquez Rosario"},
+    {id:3497,name:"Keisy Jose Mota Castillo"},{id:4181,name:"Victor Geraldo Arias"},{id:253,name:"Wilky Antonio Feliz (Supervisor)"}
+  ]},
+  { id:"runners", name:"Runners", turno:"Por confirmar", color:"#10B981", people:[
+    {id:2894,name:"Jose Enrique Consoro Guzman"},{id:2281,name:"Rosanna Moreno"},{id:1641,name:"Samuel Castillo Rodriguez"},
+    {id:4105,name:"Yael Alexander Gelabert"},{id:4859,name:"Yeury Santana"}
+  ]},
+  { id:"cobus", name:"Cobus", turno:"Mixto", color:"#F97316", people:[
+    {id:null,name:"Carlos Frangel",turno:"23:00–08:00"},{id:2331,name:"Domingo Polanco Mojica",turno:"23:00–08:00"},
+    {id:7111,name:"Eilhard Yobannys Perez",turno:"Por confirmar"},{id:null,name:"Elhelan Joan",turno:"15:00–00:00"},
+    {id:4560,name:"Isidro De Los Santos",turno:"15:00–00:00"},{id:null,name:"Jose Santana",turno:"15:00–00:00"},
+    {id:1183,name:"Keny Antonio De Mota Reyes",turno:"Por confirmar"}
+  ]},
+  { id:"limpieza", name:"Limpieza", turno:"15:00–00:00", color:"#EC4899", people:[
+    {id:7619,name:"Alexandra Alcantara"},{id:7384,name:"Amy Nayaris Melo Cuevas"},{id:2644,name:"Ana Dionicia Dilone"},
+    {id:4924,name:"Andreina Buayan"},{id:6614,name:"Angely Lopez"},{id:4851,name:"Anne Berkis Bune"},
+    {id:7620,name:"Arieli Solano"},{id:5413,name:"Benita Pamela Batista"},{id:3621,name:"Breilyn Yajahira Rivera"},
+    {id:2620,name:"Charleny Jimenez"},{id:7354,name:"Deisy Romero"},{id:4933,name:"Deyanida Vicente"},
+    {id:6028,name:"Dilsia Diaz Ramos"},{id:7280,name:"Dineydys Encarnacion"},{id:5336,name:"Dulce Alvarez Jimenez"},
+    {id:7530,name:"Dulce Maria Pinales Suero"},{id:7467,name:"Eneroliza Salmiento"},{id:7688,name:"Erodis Guevara Urbaez"},
+    {id:7148,name:"Esther Geronimo"},{id:7606,name:"Esthepany Romero"},{id:2318,name:"Genara Moreta Perez"},
+    {id:7691,name:"Ivelia Altagracia Concepcion Pichardo"},{id:5245,name:"Julia Silvestre Trinidad"},{id:7279,name:"Kianni Lopez Perdomo"},
+    {id:7271,name:"Lancy Milagros Montero"},{id:7552,name:"Leidy Rodriguez Reyes"},{id:7270,name:"Lismilda Cespedes Matos"},
+    {id:7569,name:"Magdelyn Torres"},{id:7622,name:"Manuela Santana"},{id:7278,name:"Maribel De La Cruz Perez"},
+    {id:6730,name:"Maria Del Rosario"},{id:5339,name:"Maria Neilly Encarnacion"},{id:3413,name:"Margarita Frias Acosta"},
+    {id:4927,name:"Marialis Noel"},{id:4869,name:"Nally Estefani Gil"},{id:6809,name:"Nathalie Piña"},
+    {id:7518,name:"Nayeli Elizabeth Roman"},{id:7690,name:"Rhina Margarita Ramirez Diaz"},{id:6143,name:"Rogelina Moreno"},
+    {id:6669,name:"Rosmery Feliciano"},{id:5412,name:"Ruth Del Rosario Molina"},{id:3224,name:"Sairiely N. Avelino"},
+    {id:2933,name:"Sirena Sanchez"},{id:273,name:"Teresa Santana"},{id:7376,name:"Thania Ozorio Ulloa"},
+    {id:6727,name:"Wenddy Jose"},{id:2064,name:"Yacquelyn Medina"},{id:7380,name:"Yeimy Albino Mateo"},
+    {id:7018,name:"Yubelkis Ramirez"},{id:7017,name:"Yinaury Zorrilla"}
+  ]},
+  { id:"bano", name:"Baño y Agua Potable", turno:"15:00–00:00", color:"#3B82F6", people:[
+    {name:"Carlos Rafael Arias Taveras"},{name:"Edward Figueroa"},{name:"Egensson Joseph"},
+    {name:"Francis Abreu Robiu"},{name:"Jesús Alberto De Los Santos Laureano"},{name:"Juan Francisco Léger"},
+    {name:"Luis Estarlin Denis Bock"},{name:"Raymi Rodríguez"},{name:"Rolando Villegas"},
+    {name:"Rusbel Leonardo Francisco Carrión"},{name:"Víctor Manuel Mejía"}
+  ]},
+  { id:"seguridad", name:"Seguridad Física / AVSEC", turno:"Por confirmar", color:"#EF4444", people:[
+    {name:"Alexis De León"},{name:"Denis Valenzuela"},{name:"Dilcia Pérez"},{name:"Francisco Guzmán"},
+    {name:"Johny Eusebio"},{name:"Jordany Núñez"},{name:"Juana Ramos"},{name:"Lizandro Reyes"},
+    {name:"Martina Guerrero"},{name:"Morelia Mercedes"},{name:"Nicolle Mercedes"},{name:"Randy De Aza"},
+    {name:"Wilson Díaz"},{name:"Yuveri Sosa"}
+  ]},
+  { id:"mantenimiento", name:"Mantenimiento", turno:"23:00–08:00", color:"#84CC16", people:[
+    {name:"Abner Laureano"},{name:"Fernando Pierre"},{name:"Johan Martínez"}
+  ]}
 ];
 
-const gk = () => Math.random().toString(36).substr(2, 9);
+// State
+let state = AREAS.map(a => ({
+  ...a,
+  collapsed: false,
+  people: a.people.map((p,i) => ({...p, key: a.id+'_'+i, checked: false, manual: false}))
+}));
+let currentFilter = 'all';
 
-export default function App() {
-  const [areas, setAreas] = useState(() =>
-    AREAS_DATA.map((a) => ({
-      ...a,
-      people: a.people.map((p) => ({ ...p, key: gk(), checked: false })),
-      collapsed: false,
-      newName: "",
-    }))
-  );
-  const [filter, setFilter] = useState("all");
-  const [search, setSearch] = useState("");
-  const [exportDone, setExportDone] = useState(false);
+function gk() { return Math.random().toString(36).substr(2,9); }
 
-  const toggle = (areaId, key) =>
-    setAreas((prev) =>
-      prev.map((a) =>
-        a.id === areaId ? { ...a, people: a.people.map((p) => p.key === key ? { ...p, checked: !p.checked } : p) } : a
-      )
-    );
+function setDate() {
+  const d = new Date();
+  document.getElementById('today-date').textContent = d.toLocaleDateString('es-DO',{day:'2-digit',month:'short',year:'numeric'}).toUpperCase();
+}
 
-  const toggleCollapse = (areaId) =>
-    setAreas((prev) => prev.map((a) => a.id === areaId ? { ...a, collapsed: !a.collapsed } : a));
+function updateProgress() {
+  const total = state.reduce((s,a) => s + a.people.length, 0);
+  const checked = state.reduce((s,a) => s + a.people.filter(p=>p.checked).length, 0);
+  const pct = total > 0 ? Math.round(checked/total*100) : 0;
+  document.getElementById('prog-total').textContent = total;
+  document.getElementById('prog-checked').textContent = checked;
+  document.getElementById('prog-pct').textContent = pct;
+  document.getElementById('progress-bar-fill').style.width = pct + '%';
+  updateFooter(checked, total, pct);
+}
 
-  const addPerson = (areaId) =>
-    setAreas((prev) =>
-      prev.map((a) => {
-        if (a.id !== areaId || !a.newName.trim()) return a;
-        const np = { id: null, name: a.newName.trim(), key: gk(), checked: false, manual: true };
-        return { ...a, people: [...a.people, np].sort((x, y) => x.name.localeCompare(y.name)), newName: "" };
-      })
-    );
+function updateFooter(checked, total, pct) {
+  const el = document.getElementById('foot-pct-num');
+  el.textContent = pct + '%';
+  el.style.color = pct === 100 ? '#10B981' : '#E2E8F0';
 
-  const removePerson = (areaId, key) =>
-    setAreas((prev) =>
-      prev.map((a) => a.id === areaId ? { ...a, people: a.people.filter((p) => p.key !== key) } : a)
-    );
+  let html = '';
+  state.forEach(a => {
+    const c = a.people.filter(p=>p.checked).length;
+    const t = a.people.length;
+    const done = c === t && t > 0;
+    html += `<div class="foot-area">
+      <div class="foot-area-count" style="color:${done ? a.color : '#E2E8F0'}">${c}/${t}</div>
+      <div class="foot-area-label">${a.name.split(' ')[0]}</div>
+    </div>`;
+  });
+  document.getElementById('footer').innerHTML = html + `
+    <div id="foot-pct">
+      <div id="foot-pct-num" style="font-family:'Bebas Neue',sans-serif;font-size:22px;letter-spacing:1px;color:${pct===100?'#10B981':'#E2E8F0'}">${pct}%</div>
+      <div id="foot-pct-label" style="font-size:9px;color:#3A3D4A">COMPLETADO</div>
+    </div>`;
+}
 
-  const totalPeople = areas.reduce((s, a) => s + a.people.length, 0);
-  const totalChecked = areas.reduce((s, a) => s + a.people.filter((p) => p.checked).length, 0);
-  const progress = totalPeople > 0 ? Math.round((totalChecked / totalPeople) * 100) : 0;
+function updateAreaBar(areaId) {
+  const a = state.find(x => x.id === areaId);
+  const c = a.people.filter(p=>p.checked).length;
+  const t = a.people.length;
+  const pct = t > 0 ? Math.round(c/t*100) : 0;
+  const fill = document.querySelector(`[data-area="${areaId}"] .area-mini-bar-fill`);
+  const cnt = document.querySelector(`[data-area="${areaId}"] .area-count`);
+  if(fill) fill.style.width = pct + '%';
+  if(cnt) cnt.textContent = c + '/' + t;
+}
 
-  const exportExcel = () => {
-    const wb = XLSX.utils.book_new();
-    const now = new Date();
-    const dateStr = now.toLocaleDateString("es-DO", { day: "2-digit", month: "2-digit", year: "numeric" });
-    const timeStr = now.toLocaleTimeString("es-DO", { hour: "2-digit", minute: "2-digit" });
+function toggleCheck(areaId, key) {
+  const a = state.find(x => x.id === areaId);
+  const p = a.people.find(x => x.key === key);
+  p.checked = !p.checked;
+  const row = document.querySelector(`[data-key="${key}"]`);
+  if(row) {
+    row.classList.toggle('done', p.checked);
+    const cb = row.querySelector('.checkbox');
+    cb.classList.toggle('checked', p.checked);
+    cb.style.background = p.checked ? a.color : 'transparent';
+    applyFilters();
+  }
+  updateAreaBar(areaId);
+  updateProgress();
+}
 
-    // Sheet 1: Resumen
-    const summaryRows = [
-      ["INFORME DE ENTREGA DE LUNCHBOX - AVIAM"],
-      ["Aeropuerto Internacional de Punta Cana (PUJ)"],
-      [`Fecha: ${dateStr}`, "", `Hora: ${timeStr}`],
-      [],
-      ["AREA", "TURNO", "TOTAL", "ENTREGADOS", "PENDIENTES", "% COMPLETADO"],
-      ...areas.map((a) => {
-        const c = a.people.filter((p) => p.checked).length;
-        const t = a.people.length;
-        return [a.name, a.turno, t, c, t - c, t > 0 ? `${Math.round((c / t) * 100)}%` : "0%"];
-      }),
-      [],
-      ["TOTAL GENERAL", "", totalPeople, totalChecked, totalPeople - totalChecked, `${progress}%`],
-    ];
-    const ws1 = XLSX.utils.aoa_to_sheet(summaryRows);
-    ws1["!cols"] = [{ wch: 28 }, { wch: 16 }, { wch: 8 }, { wch: 12 }, { wch: 12 }, { wch: 14 }];
-    XLSX.utils.book_append_sheet(wb, ws1, "Resumen");
+function toggleCollapse(areaId) {
+  const a = state.find(x => x.id === areaId);
+  a.collapsed = !a.collapsed;
+  const card = document.querySelector(`[data-area="${areaId}"]`);
+  const body = card.querySelector('.area-body');
+  const chev = card.querySelector('.area-chevron');
+  body.style.display = a.collapsed ? 'none' : 'block';
+  chev.textContent = a.collapsed ? '▶' : '▼';
+}
 
-    // Sheet 2: Detalle completo
-    const detailRows = [
-      ["#", "AREA", "TURNO", "No. EMPLEADO", "NOMBRE", "ESTADO"],
-      ...areas.flatMap((a) =>
-        a.people.map((p, i) => [i + 1, a.name, p.turno || a.turno, p.id ?? "S/N", p.name, p.checked ? "ENTREGADO" : "PENDIENTE"])
-      ),
-    ];
-    const ws2 = XLSX.utils.aoa_to_sheet(detailRows);
-    ws2["!cols"] = [{ wch: 5 }, { wch: 26 }, { wch: 16 }, { wch: 14 }, { wch: 36 }, { wch: 14 }];
-    XLSX.utils.book_append_sheet(wb, ws2, "Detalle Completo");
+function addPerson(areaId) {
+  const input = document.querySelector(`[data-add="${areaId}"]`);
+  const name = input.value.trim();
+  if(!name) return;
+  const a = state.find(x => x.id === areaId);
+  const key = areaId + '_' + gk();
+  const newP = {name, key, checked: false, manual: true};
+  // insert alphabetically
+  a.people.push(newP);
+  a.people.sort((x,y) => x.name.localeCompare(y.name));
+  input.value = '';
+  // Re-render area body people
+  renderAreaPeople(areaId);
+  updateAreaBar(areaId);
+  updateProgress();
+}
 
-    // Sheets por area
-    areas.forEach((a) => {
-      const c = a.people.filter((p) => p.checked).length;
-      const rows = [
-        [`${a.name} - ${a.turno}`],
-        [`Entregados: ${c} / ${a.people.length}`],
-        [],
-        ["No. EMPLEADO", "NOMBRE", "ESTADO"],
-        ...a.people.map((p) => [p.id ?? "S/N", p.name, p.checked ? "ENTREGADO" : "PENDIENTE"]),
-      ];
-      const ws = XLSX.utils.aoa_to_sheet(rows);
-      ws["!cols"] = [{ wch: 14 }, { wch: 36 }, { wch: 14 }];
-      XLSX.utils.book_append_sheet(wb, ws, a.name.substring(0, 31));
+function deletePerson(areaId, key) {
+  const a = state.find(x => x.id === areaId);
+  a.people = a.people.filter(p => p.key !== key);
+  const row = document.querySelector(`[data-key="${key}"]`);
+  if(row) row.remove();
+  updateAreaBar(areaId);
+  updateProgress();
+}
+
+function renderPersonRow(p, a) {
+  const div = document.createElement('div');
+  div.className = 'person-row' + (p.checked ? ' done' : '');
+  div.dataset.key = p.key;
+  div.dataset.name = p.name.toLowerCase();
+
+  const cb = document.createElement('div');
+  cb.className = 'checkbox' + (p.checked ? ' checked' : '');
+  cb.style.background = p.checked ? a.color : 'transparent';
+  cb.innerHTML = `<svg width="10" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4L3.5 6.5L9 1" stroke="white" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+  
+  const nameWrap = document.createElement('div');
+  nameWrap.style.flex = '1';
+  nameWrap.style.cursor = 'pointer';
+  let nameHtml = `<span class="person-name">${p.name}</span>`;
+  if(p.id) nameHtml += `<span class="person-id">#${p.id}</span>`;
+  if(p.turno) nameHtml += `<span class="person-turno">${p.turno}</span>`;
+  if(p.manual) nameHtml += `<span class="manual-tag" style="color:${a.color}">+ manual</span>`;
+  nameWrap.innerHTML = nameHtml;
+
+  div.addEventListener('click', (e) => {
+    if(e.target.classList.contains('del-btn')) return;
+    toggleCheck(a.id, p.key);
+  });
+
+  div.appendChild(cb);
+  div.appendChild(nameWrap);
+
+  if(p.manual) {
+    const del = document.createElement('button');
+    del.className = 'del-btn';
+    del.textContent = '✕';
+    del.addEventListener('click', (e) => { e.stopPropagation(); deletePerson(a.id, p.key); });
+    div.appendChild(del);
+  }
+  return div;
+}
+
+function renderAreaPeople(areaId) {
+  const a = state.find(x => x.id === areaId);
+  const body = document.querySelector(`[data-area="${areaId}"] .area-body`);
+  // Remove old rows
+  body.querySelectorAll('.person-row').forEach(r => r.remove());
+  // Add new rows before add-row
+  const addRow = body.querySelector('.add-row');
+  a.people.forEach(p => {
+    body.insertBefore(renderPersonRow(p, a), addRow);
+  });
+  applyFilters();
+}
+
+function renderAll() {
+  const container = document.getElementById('areas');
+  container.innerHTML = '';
+  state.forEach(a => {
+    const card = document.createElement('div');
+    card.className = 'area-card';
+    card.dataset.area = a.id;
+    card.style.setProperty('--color', a.color);
+
+    const total = a.people.length;
+    const checked = a.people.filter(p=>p.checked).length;
+    const pct = total > 0 ? Math.round(checked/total*100) : 0;
+
+    card.innerHTML = `
+      <div class="area-header" onclick="toggleCollapse('${a.id}')">
+        <div style="flex:1">
+          <div>
+            <span class="area-title">${a.name}</span>
+            <span class="area-badge">${a.turno}</span>
+          </div>
+          <div class="area-mini-bar-wrap">
+            <div class="area-mini-bar-track"><div class="area-mini-bar-fill" style="width:${pct}%"></div></div>
+            <span class="area-count">${checked}/${total}</span>
+          </div>
+        </div>
+        <span class="area-chevron">▼</span>
+      </div>
+      <div class="area-body" ${a.collapsed ? 'style="display:none"' : ''}>
+        <div class="add-row">
+          <span class="add-label">+</span>
+          <input class="add-input" data-add="${a.id}" placeholder="Agregar nombre..." onkeydown="if(event.key==='Enter') addPerson('${a.id}')">
+          <button class="add-btn" onclick="addPerson('${a.id}')">↵</button>
+        </div>
+      </div>`;
+
+    const body = card.querySelector('.area-body');
+    const addRow = body.querySelector('.add-row');
+    a.people.forEach(p => {
+      body.insertBefore(renderPersonRow(p, a), addRow);
     });
 
-    XLSX.writeFile(wb, `Lunchbox_${dateStr.replace(/\//g, "-")}.xlsx`);
-    setExportDone(true);
-    setTimeout(() => setExportDone(false), 3000);
-  };
-
-  const filteredAreas = areas
-    .map((a) => ({
-      ...a,
-      people: a.people.filter((p) => {
-        const mf = filter === "all" || (filter === "pending" && !p.checked) || (filter === "done" && p.checked);
-        return mf && p.name.toLowerCase().includes(search.toLowerCase());
-      }),
-    }))
-    .filter((a) => a.people.length > 0 || (!search && filter === "all"));
-
-  return (
-    <div style={{ minHeight: "100vh", background: "#0F1117", fontFamily: "'DM Mono','Courier New',monospace", color: "#E2E8F0", paddingBottom: 80 }}>
-      <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;400;500&family=Bebas+Neue&display=swap');
-        *{box-sizing:border-box}
-        ::-webkit-scrollbar{width:4px}::-webkit-scrollbar-track{background:#1A1D27}::-webkit-scrollbar-thumb{background:#3A3D4A;border-radius:2px}
-        .cr{transition:background .15s,opacity .2s;border-radius:6px}.cr:hover{background:rgba(255,255,255,.04)}.cr.done{opacity:.45}
-        .ai{background:transparent;border:none;border-bottom:1px solid #2D3148;color:#94A3B8;font-family:inherit;font-size:12px;outline:none;flex:1;padding:4px 0}
-        .ai::placeholder{color:#3D4460}.ai:focus{border-bottom-color:#6366F1;color:#E2E8F0}
-        .ab{background:none;border:none;cursor:pointer;font-size:16px;padding:2px 6px;opacity:.5;transition:opacity .2s;color:#94A3B8}.ab:hover{opacity:1}
-        .db{background:none;border:none;cursor:pointer;font-size:10px;padding:0 4px;opacity:0;color:#EF4444;transition:opacity .15s}.cr:hover .db{opacity:.6}.db:hover{opacity:1!important}
-        .fb{background:none;border:1px solid #2D3148;border-radius:4px;color:#64748B;cursor:pointer;font-family:inherit;font-size:11px;padding:5px 12px;transition:all .15s;letter-spacing:.05em}
-        .fb.active{background:#6366F1;border-color:#6366F1;color:white}.fb:hover:not(.active){border-color:#4A4D6A;color:#94A3B8}
-        .ah{cursor:pointer;user-select:none}.ah:hover{opacity:.85}
-        .si{background:#1A1D27;border:1px solid #2D3148;border-radius:6px;color:#E2E8F0;font-family:inherit;font-size:12px;outline:none;padding:8px 12px;width:100%;transition:border-color .2s}
-        .si:focus{border-color:#6366F1}.si::placeholder{color:#3D4460}
-        .cb{width:18px;height:18px;border-radius:4px;border:1.5px solid #3A3D4A;display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;transition:all .15s}
-        .cb.ck{border-color:transparent}
-        .xbtn{display:flex;align-items:center;gap:7px;background:#16A34A;border:none;border-radius:6px;color:white;cursor:pointer;font-family:inherit;font-size:11px;font-weight:500;letter-spacing:.06em;padding:8px 14px;transition:all .2s;white-space:nowrap}
-        .xbtn:hover{background:#15803D;transform:translateY(-1px)}.xbtn.ok{background:#064E3B}
-      `}</style>
-
-      {/* Header */}
-      <div style={{ background: "#13151F", borderBottom: "1px solid #1E2130", padding: "18px 16px 14px" }}>
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
-          <div>
-            <div style={{ fontFamily: "'Bebas Neue',sans-serif", fontSize: 24, letterSpacing: 2 }}>ENTREGA LUNCHBOX</div>
-            <div style={{ fontSize: 10, color: "#4A4D6A", letterSpacing: 1, marginTop: 1 }}>
-              AVIAM · PUJ · {new Date().toLocaleDateString("es-DO", { weekday: "long", day: "2-digit", month: "long" }).toUpperCase()}
-            </div>
-          </div>
-          <button className={`xbtn ${exportDone ? "ok" : ""}`} onClick={exportExcel}>
-            <span style={{ fontSize: 14 }}>{exportDone ? "✓" : "⬇"}</span>
-            {exportDone ? "EXPORTADO!" : "EXPORTAR EXCEL"}
-          </button>
-        </div>
-
-        <div style={{ marginBottom: 12 }}>
-          <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 5 }}>
-            <span style={{ fontSize: 10, color: "#64748B", letterSpacing: .5 }}>PROGRESO GLOBAL</span>
-            <span style={{ fontSize: 10, color: "#94A3B8" }}>
-              <span style={{ color: "#E2E8F0", fontWeight: 500 }}>{totalChecked}</span>/{totalPeople} · {progress}%
-            </span>
-          </div>
-          <div style={{ height: 4, background: "#1E2130", borderRadius: 2, overflow: "hidden" }}>
-            <div style={{ height: "100%", width: `${progress}%`, background: "linear-gradient(90deg,#6366F1,#8B5CF6)", borderRadius: 2, transition: "width .4s" }} />
-          </div>
-        </div>
-
-        <input className="si" placeholder="Buscar empleado..." value={search} onChange={(e) => setSearch(e.target.value)} style={{ marginBottom: 8 }} />
-        <div style={{ display: "flex", gap: 6 }}>
-          {[["all","TODOS"],["pending","PENDIENTES"],["done","ENTREGADOS"]].map(([v, l]) => (
-            <button key={v} className={`fb ${filter === v ? "active" : ""}`} onClick={() => setFilter(v)}>{l}</button>
-          ))}
-        </div>
-      </div>
-
-      {/* Area list */}
-      <div style={{ padding: "10px 14px", display: "flex", flexDirection: "column", gap: 8 }}>
-        {filteredAreas.map((area) => {
-          const orig = areas.find((a) => a.id === area.id);
-          const ac = orig.people.filter((p) => p.checked).length;
-          const at = orig.people.length;
-          return (
-            <div key={area.id} style={{ background: "#13151F", border: "1px solid #1E2130", borderRadius: 10, overflow: "hidden" }}>
-              <div className="ah" onClick={() => toggleCollapse(area.id)}
-                style={{ display: "flex", alignItems: "center", gap: 10, padding: "11px 13px", borderLeft: `3px solid ${area.color}` }}>
-                <div style={{ flex: 1 }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                    <span style={{ fontFamily: "'Bebas Neue',sans-serif", fontSize: 15, letterSpacing: 1, color: area.color }}>{area.name}</span>
-                    <span style={{ fontSize: 9, background: "#1E2130", color: "#64748B", padding: "2px 6px", borderRadius: 3 }}>{area.turno}</span>
-                  </div>
-                  <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 4 }}>
-                    <div style={{ flex: 1, height: 2, background: "#1E2130", borderRadius: 1 }}>
-                      <div style={{ height: "100%", width: `${at > 0 ? Math.round((ac / at) * 100) : 0}%`, background: area.color, borderRadius: 1, transition: "width .3s" }} />
-                    </div>
-                    <span style={{ fontSize: 10, color: "#64748B", whiteSpace: "nowrap" }}>{ac}/{at}</span>
-                  </div>
-                </div>
-                <span style={{ fontSize: 11, color: "#3A3D4A" }}>{orig.collapsed ? "▶" : "▼"}</span>
-              </div>
-
-              {!orig.collapsed && (
-                <div style={{ padding: "4px 13px 10px" }}>
-                  {area.people.map((p) => (
-                    <div key={p.key} className={`cr ${p.checked ? "done" : ""}`}
-                      style={{ display: "flex", alignItems: "center", gap: 10, padding: "6px 4px" }}>
-                      <div className={`cb ${p.checked ? "ck" : ""}`} style={{ background: p.checked ? area.color : "transparent" }}
-                        onClick={() => toggle(area.id, p.key)}>
-                        {p.checked && <span style={{ color: "#fff", fontSize: 11 }}>✓</span>}
-                      </div>
-                      <div style={{ flex: 1, cursor: "pointer" }} onClick={() => toggle(area.id, p.key)}>
-                        <span style={{ fontSize: 12, color: p.checked ? "#4A4D6A" : "#CBD5E1", textDecoration: p.checked ? "line-through" : "none" }}>{p.name}</span>
-                        {p.id && <span style={{ fontSize: 10, color: "#3A3D4A", marginLeft: 8 }}>#{p.id}</span>}
-                        {p.turno && <span style={{ fontSize: 9, color: "#4A5568", marginLeft: 6, background: "#1A1D27", padding: "1px 5px", borderRadius: 3 }}>{p.turno}</span>}
-                        {p.manual && <span style={{ fontSize: 9, color: area.color, marginLeft: 6, opacity: .6 }}>+manual</span>}
-                      </div>
-                      {p.manual && <button className="db" onClick={() => removePerson(area.id, p.key)}>✕</button>}
-                    </div>
-                  ))}
-                  <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 8, paddingTop: 8, borderTop: "1px solid #1A1D27" }}>
-                    <span style={{ fontSize: 12, color: "#3A3D4A" }}>+</span>
-                    <input className="ai" placeholder="Agregar nombre manualmente..." value={areas.find((a) => a.id === area.id)?.newName || ""}
-                      onChange={(e) => setAreas((prev) => prev.map((a) => a.id === area.id ? { ...a, newName: e.target.value } : a))}
-                      onKeyDown={(e) => e.key === "Enter" && addPerson(area.id)} />
-                    <button className="ab" onClick={() => addPerson(area.id)}>↵</button>
-                  </div>
-                </div>
-              )}
-            </div>
-          );
-        })}
-      </div>
-
-      {/* Footer */}
-      <div style={{ position: "fixed", bottom: 0, left: 0, right: 0, background: "#0D0F18", borderTop: "1px solid #1E2130", padding: "8px 16px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-        <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
-          {areas.map((a) => {
-            const c = a.people.filter((p) => p.checked).length;
-            const t = a.people.length;
-            return (
-              <div key={a.id} style={{ textAlign: "center" }}>
-                <div style={{ fontSize: 12, fontWeight: 500, color: c === t && t > 0 ? a.color : "#94A3B8" }}>{c}/{t}</div>
-                <div style={{ fontSize: 8, color: "#3A3D4A", textTransform: "uppercase" }}>{a.name.split(" ")[0]}</div>
-              </div>
-            );
-          })}
-        </div>
-        <div style={{ textAlign: "right" }}>
-          <div style={{ fontFamily: "'Bebas Neue'", fontSize: 20, color: progress === 100 ? "#10B981" : "#E2E8F0", letterSpacing: 1 }}>{progress}%</div>
-          <div style={{ fontSize: 8, color: "#3A3D4A" }}>COMPLETADO</div>
-        </div>
-      </div>
-    </div>
-  );
+    container.appendChild(card);
+  });
+  updateProgress();
 }
+
+function setFilter(f, btn) {
+  currentFilter = f;
+  document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  applyFilters();
+}
+
+function applyFilters() {
+  const search = document.getElementById('search').value.toLowerCase();
+  document.querySelectorAll('.person-row').forEach(row => {
+    const name = row.dataset.name || '';
+    const checked = row.classList.contains('done');
+    const matchSearch = name.includes(search);
+    const matchFilter = currentFilter === 'all' || (currentFilter === 'pending' && !checked) || (currentFilter === 'done' && checked);
+    row.classList.toggle('hidden', !(matchSearch && matchFilter));
+  });
+}
+
+setDate();
+renderAll();
+</script>
+</body>
+</html>
