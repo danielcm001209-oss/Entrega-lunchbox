@@ -189,51 +189,57 @@ const AREAS = [
   ]}
 ];
 
-// State
-const STORAGE_KEY = 'lunchbox_aviam_state';
+// ── LocalStorage ─────────────────────────────────────────────
+const STORAGE_KEY = 'lunchbox_aviam_v2';
 
+// Save: checked set (areaId|name), collapsed set, manual list
 function saveState() {
-  const toSave = state.map(a => ({
-    id: a.id,
-    collapsed: a.collapsed,
-    people: a.people.map(p => ({ key: p.key, name: p.name, id: p.id || null, turno: p.turno || null, checked: p.checked, manual: p.manual }))
-  }));
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(toSave));
+  const checked   = [];
+  const collapsed = [];
+  const manuals   = [];
+  state.forEach(a => {
+    if (a.collapsed) collapsed.push(a.id);
+    a.people.forEach(p => {
+      if (p.checked) checked.push(a.id + '|' + p.name);
+      if (p.manual)  manuals.push({ areaId: a.id, name: p.name, checked: p.checked });
+    });
+  });
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ checked, collapsed, manuals }));
+  } catch(e) {}
 }
 
-function loadState() {
+// Load saved data (returns null if nothing)
+function getSaved() {
   try {
-    const saved = JSON.parse(localStorage.getItem(STORAGE_KEY));
-    if (!saved) return null;
-    return saved;
+    const raw = localStorage.getItem(STORAGE_KEY);
+    return raw ? JSON.parse(raw) : null;
   } catch(e) { return null; }
 }
 
-let state = (() => {
-  const base = AREAS.map(a => ({
-    ...a,
-    collapsed: false,
-    people: a.people.map((p,i) => ({...p, key: a.id+'_'+i, checked: false, manual: false}))
+// Build initial state, merging saved data if present
+const saved = getSaved();
+const checkedSet   = new Set(saved ? saved.checked   : []);
+const collapsedSet = new Set(saved ? saved.collapsed : []);
+const savedManuals = saved ? saved.manuals : [];
+
+let state = AREAS.map(a => {
+  // Base people
+  const people = a.people.map((p, i) => ({
+    ...p,
+    key:     a.id + '_' + i,
+    checked: checkedSet.has(a.id + '|' + p.name),
+    manual:  false
   }));
-  const saved = loadState();
-  if (!saved) return base;
-  // Merge: restore checked + collapsed + manual entries
-  return base.map(a => {
-    const savedArea = saved.find(s => s.id === a.id);
-    if (!savedArea) return a;
-    // Restore checked for existing people
-    const people = a.people.map(p => {
-      const sp = savedArea.people.find(x => x.key === p.key);
-      return sp ? {...p, checked: sp.checked} : p;
-    });
-    // Re-add manual entries
-    savedArea.people.filter(p => p.manual).forEach(p => {
-      if (!people.find(x => x.key === p.key)) people.push({...p});
-    });
-    people.sort((x,y) => x.name.localeCompare(y.name));
-    return {...a, collapsed: savedArea.collapsed, people};
+  // Re-inject manual entries saved previously
+  savedManuals.filter(m => m.areaId === a.id).forEach(m => {
+    if (!people.find(p => p.name === m.name)) {
+      people.push({ name: m.name, key: a.id + '_m_' + m.name, checked: m.checked, manual: true });
+    }
   });
-})();
+  people.sort((x, y) => x.name.localeCompare(y.name));
+  return { ...a, collapsed: collapsedSet.has(a.id), people };
+});
 
 let currentFilter = 'all';
 
