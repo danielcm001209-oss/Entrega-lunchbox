@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Entrega Lunchbox – AVIAM PUJ</title>
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
   body { background: #0F1117; color: #E2E8F0; font-family: 'DM Mono', 'Courier New', monospace; min-height: 100vh; padding-bottom: 90px; }
@@ -25,6 +26,9 @@
   .filter-btn { background: none; border: 1px solid #2D3148; border-radius: 4px; color: #64748B; cursor: pointer; font-family: inherit; font-size: 11px; padding: 5px 12px; letter-spacing: 0.05em; transition: all 0.15s; }
   .filter-btn.active { background: #6366F1; border-color: #6366F1; color: white; }
   .filter-btn:hover:not(.active) { border-color: #4A4D6A; color: #94A3B8; }
+  #export-btn { background: #10B981; border: none; border-radius: 4px; color: #fff; cursor: pointer; font-family: inherit; font-size: 11px; padding: 5px 14px; letter-spacing: 0.05em; transition: background 0.15s; }
+  #export-btn:hover { background: #059669; }
+  #export-btn:active { transform: scale(0.97); }
 
   /* AREAS */
   #areas { padding: 12px 16px; display: flex; flex-direction: column; gap: 10px; }
@@ -94,6 +98,7 @@
     <button class="filter-btn active" onclick="setFilter('all',this)">TODOS</button>
     <button class="filter-btn" onclick="setFilter('pending',this)">PENDIENTES</button>
     <button class="filter-btn" onclick="setFilter('done',this)">ENTREGADOS</button>
+    <button id="export-btn" onclick="exportExcel()">⬇ EXPORTAR EXCEL</button>
   </div>
 </div>
 
@@ -404,6 +409,74 @@ function applyFilters() {
     const matchFilter = currentFilter === 'all' || (currentFilter === 'pending' && !checked) || (currentFilter === 'done' && checked);
     row.classList.toggle('hidden', !(matchSearch && matchFilter));
   });
+}
+
+function exportExcel() {
+  const wb = XLSX.utils.book_new();
+
+  // --- Sheet 1: Resumen General ---
+  const resumen = [
+    ['ENTREGA LUNCHBOX – AVIAM PUJ', '', '', '', ''],
+    ['Fecha:', new Date().toLocaleDateString('es-DO', {day:'2-digit',month:'long',year:'numeric'}), '', '', ''],
+    ['', '', '', '', ''],
+    ['ÁREA', 'TURNO', 'ENTREGADOS', 'PENDIENTES', 'TOTAL'],
+  ];
+  state.forEach(a => {
+    const c = a.people.filter(p => p.checked).length;
+    const t = a.people.length;
+    resumen.push([a.name, a.turno, c, t - c, t]);
+  });
+  const totalC = state.reduce((s,a) => s + a.people.filter(p=>p.checked).length, 0);
+  const totalT = state.reduce((s,a) => s + a.people.length, 0);
+  resumen.push(['', '', '', '', '']);
+  resumen.push(['TOTAL GENERAL', '', totalC, totalT - totalC, totalT]);
+
+  const wsResumen = XLSX.utils.aoa_to_sheet(resumen);
+  wsResumen['!cols'] = [{wch:30},{wch:18},{wch:14},{wch:14},{wch:10}];
+  XLSX.utils.book_append_sheet(wb, wsResumen, 'Resumen');
+
+  // --- Sheet 2: Detalle completo ---
+  const detalle = [['NO. EMPLEADO', 'NOMBRE', 'ÁREA', 'TURNO', 'ESTADO', 'MANUAL']];
+  state.forEach(a => {
+    a.people.forEach(p => {
+      detalle.push([
+        p.id || '',
+        p.name,
+        a.name,
+        p.turno || a.turno,
+        p.checked ? 'ENTREGADO' : 'PENDIENTE',
+        p.manual ? 'SÍ' : 'NO'
+      ]);
+    });
+  });
+  const wsDetalle = XLSX.utils.aoa_to_sheet(detalle);
+  wsDetalle['!cols'] = [{wch:14},{wch:36},{wch:26},{wch:16},{wch:12},{wch:8}];
+  XLSX.utils.book_append_sheet(wb, wsDetalle, 'Detalle');
+
+  // --- Sheet 3: Solo pendientes ---
+  const pendientes = [['NO. EMPLEADO', 'NOMBRE', 'ÁREA', 'TURNO']];
+  state.forEach(a => {
+    a.people.filter(p => !p.checked).forEach(p => {
+      pendientes.push([p.id || '', p.name, a.name, p.turno || a.turno]);
+    });
+  });
+  const wsPend = XLSX.utils.aoa_to_sheet(pendientes);
+  wsPend['!cols'] = [{wch:14},{wch:36},{wch:26},{wch:16}];
+  XLSX.utils.book_append_sheet(wb, wsPend, 'Pendientes');
+
+  // --- Sheet 4: Solo entregados ---
+  const entregados = [['NO. EMPLEADO', 'NOMBRE', 'ÁREA', 'TURNO']];
+  state.forEach(a => {
+    a.people.filter(p => p.checked).forEach(p => {
+      entregados.push([p.id || '', p.name, a.name, p.turno || a.turno]);
+    });
+  });
+  const wsEntr = XLSX.utils.aoa_to_sheet(entregados);
+  wsEntr['!cols'] = [{wch:14},{wch:36},{wch:26},{wch:16}];
+  XLSX.utils.book_append_sheet(wb, wsEntr, 'Entregados');
+
+  const fecha = new Date().toLocaleDateString('es-DO',{day:'2-digit',month:'2-digit',year:'numeric'}).replace(/\//g,'-');
+  XLSX.writeFile(wb, `Lunchbox_AVIAM_${fecha}.xlsx`);
 }
 
 setDate();
